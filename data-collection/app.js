@@ -8,6 +8,8 @@ const video = document.querySelector("#camera");
 const overlay = document.querySelector("#overlay");
 const ctx = overlay.getContext("2d");
 
+const CROP_MARGIN = 0.1; // margines = 20% rozmiaru dłoni
+
 async function startCamera() {
     startButton.disabled = true;
     try {
@@ -39,6 +41,19 @@ function getBoundingBox(landmarks, frameWidth, frameHeight) {
     return { minX, maxX, minY, maxY };
 }
 
+function getSquare(box){
+    const width = box.maxX - box.minX;
+    const height = box.maxY - box.minY;
+    const centerX = (box.minX + box.maxX) / 2;
+    const centerY = (box.minY + box.maxY) / 2;
+
+    // dłuższy bok + margines z każdej strony
+    const side = Math.max(width,height) * (1 + 2 * CROP_MARGIN);  
+    
+    // lewy górny róg kwadratu
+    return { x: centerX - side / 2, y: centerY - side / 2, side };
+}
+
 function detectionLoop() {
     if (handLandmarker && video.readyState >= 2 && video.currentTime !== lastVideoTime) {
         lastVideoTime = video.currentTime;
@@ -66,6 +81,9 @@ function detectionLoop() {
             ctx.lineWidth = 2;
             // rysowanie obrysu
             ctx.strokeRect(box.minX, box.minY, box.maxX - box.minX, box.maxY - box.minY);
+            const square = getSquare(box);
+            ctx.strokeStyle = "yellow";
+            ctx.strokeRect(square.x, square.y, square.side, square.side);
         }
     }
     requestAnimationFrame(detectionLoop);
