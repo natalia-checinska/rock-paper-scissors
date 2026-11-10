@@ -8,7 +8,7 @@ const video = document.querySelector("#camera");
 const overlay = document.querySelector("#overlay");
 const ctx = overlay.getContext("2d");
 
-const CROP_MARGIN = 0.1; // margines = 20% rozmiaru dłoni
+const CROP_MARGIN = 0.2; // margines = 20% rozmiaru dłoni
 
 async function startCamera() {
     startButton.disabled = true;
@@ -54,6 +54,20 @@ function getSquare(box){
     return { x: centerX - side / 2, y: centerY - side / 2, side };
 }
 
+function clampSquareToFrame(square, frameWidth, frameHeight) {
+    // kwadrat nie może być większy niz klatka
+    const side = Math.min(square.side, frameWidth, frameHeight);
+    // przycinanie liczby do przedziału
+    const x = Math.min(Math.max(square.x, 0), frameWidth - side);
+    const y = Math.min(Math.max(square.y, 0), frameHeight - side);
+    return { x, y, side };
+}
+
+function isHandInsideFrame(landmarks){
+    // czy każdy element spełnia warunek (jest w zakresie 0-1)
+    return landmarks.every((p) => p.x >= 0 && p.x <= 1 && p.y >= 0 && p.y <= 1);
+}
+
 function detectionLoop() {
     if (handLandmarker && video.readyState >= 2 && video.currentTime !== lastVideoTime) {
         lastVideoTime = video.currentTime;
@@ -75,14 +89,12 @@ function detectionLoop() {
             }
         }
         const firstHand = result.landmarks[0];
-        if (firstHand) {
+        // gdy dłoń wykryta i cała mieści się w kadrze
+        if (firstHand && isHandInsideFrame(firstHand)) {
             const box = getBoundingBox(firstHand, overlay.width, overlay.height);
-            ctx.strokeStyle = "lime";
-            ctx.lineWidth = 2;
-            // rysowanie obrysu
-            ctx.strokeRect(box.minX, box.minY, box.maxX - box.minX, box.maxY - box.minY);
-            const square = getSquare(box);
+            const square = clampSquareToFrame(getSquare(box), overlay.width, overlay.height);
             ctx.strokeStyle = "yellow";
+            ctx.lineWidth = 2;
             ctx.strokeRect(square.x, square.y, square.side, square.side);
         }
     }
