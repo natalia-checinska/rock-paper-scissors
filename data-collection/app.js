@@ -8,6 +8,13 @@ const video = document.querySelector("#camera");
 const overlay = document.querySelector("#overlay");
 const ctx = overlay.getContext("2d");
 
+const cropPreview = document.querySelector("#crop-preview");
+const cropCtx = cropPreview.getContext("2d");
+
+const CROP_SIZE = 256; // zapisujemy 256x256 a będziemy trenowac na 128x128
+cropPreview.width = CROP_SIZE;
+cropPreview.height = CROP_SIZE;
+
 const CROP_MARGIN = 0.2; // margines = 20% rozmiaru dłoni
 
 async function startCamera() {
@@ -96,6 +103,15 @@ function detectionLoop() {
             ctx.strokeStyle = "yellow";
             ctx.lineWidth = 2;
             ctx.strokeRect(square.x, square.y, square.side, square.side);
+
+            cropCtx.drawImage(
+                video, // skąd
+                square.x, square.y, square.side, square.side, // który fragment wziąć
+                0, 0, CROP_SIZE, CROP_SIZE // gdzie i jak duży narysować
+            );
+        }
+        else {
+            cropCtx.clearRect(0, 0, CROP_SIZE, CROP_SIZE); // czyszczenie poglądu przy braku dłoni
         }
     }
     requestAnimationFrame(detectionLoop);
