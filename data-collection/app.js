@@ -24,6 +24,21 @@ async function startCamera() {
     }
 }
 
+function getBoundingBox(landmarks, frameWidth, frameHeight) {
+    // zbieramy najbardziej skrajne punkty x i y
+    // landmarks - lista 21 punktów; x, y w zakresie 0-1
+    // landmarks.map - dla każdego elementu liczy wynik
+    const xs = landmarks.map((p) => p.x * frameWidth); // funkcja strzałkowa, bierze p i zwraca równanie
+    const ys = landmarks.map((p) => p.y * frameHeight);
+    // xs, ys - listy 21 współrzędnych x i y w pikselach
+    const minX = Math.min(...xs); // lewa krawędź
+    const maxX = Math.max(...xs); // prawa krawędź
+    const minY = Math.min(...ys); // górna krawędź
+    const maxY = Math.max(...ys); // dolna krawędź
+
+    return { minX, maxX, minY, maxY };
+}
+
 function detectionLoop() {
     if (handLandmarker && video.readyState >= 2 && video.currentTime !== lastVideoTime) {
         lastVideoTime = video.currentTime;
@@ -33,16 +48,24 @@ function detectionLoop() {
             overlay.height = video.videoHeight;
         }
 
-        const results = handLandmarker.detectForVideo(video, performance.now());
+        const result = handLandmarker.detectForVideo(video, performance.now());
 
         ctx.clearRect(0,0,overlay.width, overlay.height);
-        for (const hand of results.landmarks) {
+        for (const hand of result.landmarks) {
             for (const point of hand) {
                 ctx.beginPath();
                 ctx.arc(point.x * overlay.width, point.y * overlay.height, 4, 0, 2 * Math.PI);
                 ctx.fillStyle = "red";
                 ctx.fill();
             }
+        }
+        const firstHand = result.landmarks[0];
+        if (firstHand) {
+            const box = getBoundingBox(firstHand, overlay.width, overlay.height);
+            ctx.strokeStyle = "lime";
+            ctx.lineWidth = 2;
+            // rysowanie obrysu
+            ctx.strokeRect(box.minX, box.minY, box.maxX - box.minX, box.maxY - box.minY);
         }
     }
     requestAnimationFrame(detectionLoop);
