@@ -7,6 +7,7 @@ const SUPABASE_KEY = "sb_publishable_iKQLMLniEuXyLFh3qRgvWg_FFoM7pXZ";
 const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
 let handLandmarker;
+let lastCapture = null; // ostatnia klatka z poprawnie widoczną dłonią
 let lastVideoTime = -1;
 
 const startButton = document.querySelector("#start-button");
@@ -81,6 +82,20 @@ function isHandInsideFrame(landmarks){
     return landmarks.every((p) => p.x >= 0 && p.x <= 1 && p.y >= 0 && p.y <= 1);
 }
 
+function computeBrightness() {
+    const data = cropCtx.getImageData(0,0,CROP_SIZE,CROP_SIZE).data;
+    let sum = 0;
+    
+    for (let i = 0; i < data.length; i += 4) {
+        const R = data[i];
+        const G = data[i + 1];
+        const B = data[i + 2];
+        sum += (R + G + B) / 3; // średnia jasność konkretnego piksela
+    }
+
+    return sum / (data.length / 4); // średnia jasność na piksel
+}
+
 function detectionLoop() {
     if (handLandmarker && video.readyState >= 2 && video.currentTime !== lastVideoTime) {
         lastVideoTime = video.currentTime;
@@ -115,15 +130,27 @@ function detectionLoop() {
                 square.x, square.y, square.side, square.side, // który fragment wziąć
                 0, 0, CROP_SIZE, CROP_SIZE // gdzie i jak duży narysować
             );
+
+            lastCapture = {
+                landmarks: firstHand,
+                worldLandmarks: result.worldLandmarks[0],
+                handedness: result.handedness[0][0],
+                square: square,
+                frameWidth: overlay.width,
+                frameHeight: overlay.height,
+                capturedAt: new Date().toISOString(),
+            };
         }
         else {
             cropCtx.clearRect(0, 0, CROP_SIZE, CROP_SIZE); // czyszczenie poglądu przy braku dłoni
+            lastCapture = null; // dłoń nie jest widoczna
         }
     }
     requestAnimationFrame(detectionLoop);
 }
 
 async function testSave() {
+
     const sessionID = crypto.randomUUID();
 
     const {error} = await supabase.from("sessions").insert({
