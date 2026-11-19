@@ -1,4 +1,10 @@
 import { HandLandmarker, FilesetResolver} from "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/vision_bundle.mjs";
+import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.110.1/+esm";
+
+
+const SUPABASE_URL = "https://najpevnffbifbhjkrnsu.supabase.co";
+const SUPABASE_KEY = "sb_publishable_iKQLMLniEuXyLFh3qRgvWg_FFoM7pXZ";
+const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
 let handLandmarker;
 let lastVideoTime = -1;
@@ -117,7 +123,28 @@ function detectionLoop() {
     requestAnimationFrame(detectionLoop);
 }
 
+async function testSave() {
+    const sessionID = crypto.randomUUID();
+
+    const {error} = await supabase.from("sessions").insert({
+        id: sessionID,
+        participant_id: "test",
+        consent_at: new Date().toISOString(),
+        user_agent: navigator.userAgent,
+        app_version: "0.0.1-test",
+        notes: "pierwszy test zapisu",
+    });
+    if (error) {
+        console.error("Błąd podczas zapisu sesji", error);
+        return;
+    } 
+    console.log("Sesja zapisana: ", sessionID);
+
+}
+document.querySelector("#test-save-button").addEventListener("click", testSave);
+
 startButton.addEventListener("click", startCamera);
+
 
 async function loadModel() {
     try {
