@@ -16,6 +16,7 @@ CREATE TABLE images (
     round integer NOT NULL,
     frame_index integer NOT NULL,
     gesture text NOT NULL CHECK (gesture IN ('rock', 'paper', 'scissors','none')),
+    prompt_hint text NOT NULL,
     landmarks jsonb NOT NULL,
     world_landmarks jsonb NOT NULL,
     crop_x real NOT NULL,
