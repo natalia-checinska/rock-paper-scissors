@@ -33,6 +33,33 @@ cropPreview.height = CROP_SIZE;
 
 const CROP_MARGIN = 0.2; // margines = 20% rozmiaru dłoni
 
+const GESTURE_EMOJI = { rock: "✊", paper: "✋", scissors: "✌️" };
+
+const NONE_HINTS = {
+    one_finger: "☝️",
+    crossed_fingers: "🤞",
+    call_me: "🤙",
+    ok: "👌",
+    pinched_fingers: "🤌",
+    thumbs_down: "👎",
+    love_you: "🤟",
+    thumbs_up: "👍",
+};
+
+const ROUND_COUNT = 4;
+const SHOTS_PER_SERIES = 10;
+const SHOT_INTERVAL_MS = 300; // odstęp między zdjęciami
+const FIRST_COUNTDOWN_S = 5; // odliczanie przed pierwszym gestem
+const COUNTDOWN_S = 3;
+
+const ROUND_INSTRUCTIONS = [
+    "Ustaw się tak, aby dłoń była dobrze widoczna.",
+    "Zmień rękę na drugą.",
+    "Zmień miejsce lub oświetlenie.",
+    "Znowu zmień rękę.",
+]
+
+
 async function startCamera() {
     startButton.disabled = true;
     try {
@@ -108,6 +135,34 @@ function computeBrightness(ctx) {
 function canvasToJpeg(canvas) {
     return new Promise((resolve) => canvas.toBlob(resolve, "image/jpeg", 0.9));
     // 0.9 -> 90% jakość jpeg
+}
+
+function shuffle(array) {
+    const result = [...array];
+    for (let i = result.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [result[i], result[j]] = [result[j], result[i]];
+    }
+    return result;
+}
+
+function buildSessionPlan(){
+    const hints = shuffle(Object.keys(NONE_HINTS)).slice(0,ROUND_COUNT);
+
+    const plan = [];
+    for (let r = 0; r < ROUND_COUNT; r++) {
+        const gestures = shuffle(["rock", "paper", "scissors", "none"]);
+        plan.push({
+            round: r + 1,
+            instruction: ROUND_INSTRUCTIONS[r],
+            steps:
+            gestures.map((g) => ({
+                gesture: g,
+                hint: g === "none" ? hints[r] : null,
+            })),
+        });
+    }
+    return plan;
 }
 
 function detectionLoop() {
