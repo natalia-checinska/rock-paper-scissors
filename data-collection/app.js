@@ -10,6 +10,11 @@ let handLandmarker;
 let lastCapture = null; // ostatnia klatka z poprawnie widoczną dłonią
 let lastVideoTime = -1;
 
+let testSessionId = null; // id sesji, do której dopinamy zdjęcia
+let testFrameIndex = 0; // kolejny numer zdjęcia w sesji
+
+const CROP_SIZE = 256; // zapisujemy 256x256 a będziemy trenowac na 128x128
+
 const startButton = document.querySelector("#start-button");
 const video = document.querySelector("#camera");
 const overlay = document.querySelector("#overlay");
@@ -18,7 +23,11 @@ const ctx = overlay.getContext("2d");
 const cropPreview = document.querySelector("#crop-preview");
 const cropCtx = cropPreview.getContext("2d");
 
-const CROP_SIZE = 256; // zapisujemy 256x256 a będziemy trenowac na 128x128
+const saveCanvas = document.createElement("canvas"); // płótno jedynie w pamięci
+saveCanvas.width = CROP_SIZE;
+saveCanvas.height = CROP_SIZE;
+const saveCtx = saveCanvas.getContext("2d", {willReadFrequently: true}); // przyspiesza odczyt pikseli z canvas
+
 cropPreview.width = CROP_SIZE;
 cropPreview.height = CROP_SIZE;
 
@@ -82,8 +91,8 @@ function isHandInsideFrame(landmarks){
     return landmarks.every((p) => p.x >= 0 && p.x <= 1 && p.y >= 0 && p.y <= 1);
 }
 
-function computeBrightness() {
-    const data = cropCtx.getImageData(0,0,CROP_SIZE,CROP_SIZE).data;
+function computeBrightness(ctx) {
+    const data = ctx.getImageData(0,0,CROP_SIZE,CROP_SIZE).data;
     let sum = 0;
     
     for (let i = 0; i < data.length; i += 4) {
@@ -94,6 +103,11 @@ function computeBrightness() {
     }
 
     return sum / (data.length / 4); // średnia jasność na piksel
+}
+
+function canvasToJpeg(canvas) {
+    return new Promise((resolve) => canvas.toBlob(resolve, "image/jpeg", 0.9));
+    // 0.9 -> 90% jakość jpeg
 }
 
 function detectionLoop() {
@@ -166,9 +180,54 @@ async function testSave() {
         return;
     } 
     console.log("Sesja zapisana: ", sessionID);
+    testSessionId = sessionID;
+    testFrameIndex = 0;
 
 }
+
+async function testSaveImage() {
+    if (!lastCapture) { console.warn("Brak dłoni w kadrze, nie zapisano"); return; }
+    if (!testSessionId) { console.warn("Kliknij test zapisu"); return; }
+
+    const capture = lastCapture;
+    saveCtx.drawImage(cropPreview, 0, 0) // kopia wycinka
+    const brightness = computeBrightness(saveCtx);
+    const blob = await canvasToJpeg(saveCanvas);
+
+    const imageId = crypto.randomUUID();
+    const filePath = `${testSessionId}/${imageId}.jpg`;
+
+    const {error : uploadError} = await supabase.storage
+        .from("hand-crops")
+        .upload(filePath, blob, {contentType: "image/jpeg", upsert: false});
+    if (uploadError) {console.error("Błąd wysyłania zdjęcia:", uploadError); return;}
+
+    const {error : insertError} = await supabase.from("images").insert({
+        id: imageId,
+        session_id: testSessionId,
+        round: 1,
+        frame_index: testFrameIndex,
+        gesture: "rock",
+        landmarks: capture.landmarks.map((p) => [p.x,p.y,p.z]),
+        world_landmarks: capture.worldLandmarks.map((p) => [p.x,p.y,p.z]),
+        crop_x: capture.square.x,
+        crop_y: capture.square.y,
+        crop_side: capture.square.side,
+        frame_width: capture.frameWidth,
+        frame_height: capture.frameHeight,
+        brightness: brightness,
+        handedness: capture.handedness.categoryName,
+        handedness_score: capture.handedness.score,
+        file_path: filePath,
+        captured_at: capture.capturedAt,
+    });
+    if (insertError) { console.error("Błąd zapisu wiersza:", insertError); return;}
+    
+    console.log("Zdjęcie zapisane:", filePath);
+    testFrameIndex++;
+}
 document.querySelector("#test-save-button").addEventListener("click", testSave);
+document.querySelector("#test-image-button").addEventListener("click", testSaveImage);
 
 startButton.addEventListener("click", startCamera);
 
