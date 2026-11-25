@@ -15,6 +15,9 @@ let testFrameIndex = 0; // kolejny numer zdjęcia w sesji
 
 const CROP_SIZE = 256; // zapisujemy 256x256 a będziemy trenowac na 128x128
 
+const screens = document.querySelectorAll(".screen");
+const stage = document.querySelector("#stage");
+
 const startButton = document.querySelector("#start-button");
 const video = document.querySelector("#camera");
 const overlay = document.querySelector("#overlay");
@@ -76,6 +79,12 @@ async function startCamera() {
     }
 }
 
+function showScreen(name) {
+    for (const screen of screens) {
+        screen.hidden = screen.id !== `screen-${name}`;
+    }
+    stage.hidden = !(name === "round" || name === "capture");
+}
 function getBoundingBox(landmarks, frameWidth, frameHeight) {
     // zbieramy najbardziej skrajne punkty x i y
     // landmarks - lista 21 punktów; x, y w zakresie 0-1
@@ -304,3 +313,4 @@ async function loadModel() {
 }
 
 loadModel();
+

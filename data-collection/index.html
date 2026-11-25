@@ -7,9 +7,50 @@
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
-    <button id = "start-button">Włącz kamerę</button>
+    <section id="screen-welcome" class="screen">    
+         <h1>Kamień, papier, nożyce: pomóż wytrenować AI</h1>
+         <p id="consent-text">TODO: informacja dla uczestnika</p>
+        <label>
+            <input type="checkbox" id="consent-checkbox">
+            Zapoznałam/em się z informacją i zgadzam się na udział.
+        </label>
+        <button id="start-button" disabled>Ładowanie...</button>
+    </section>
+
+    <section id="screen-camera-error" class="screen" hidden>
+        <p>Nie udało się włączyć kamery. Zezwól na dostęp do kamery w ustawieniach przeglądarki i odśwież stronę.</p>
+    </section>
+
+
+    <section id="screen-round" class="screen" hidden>
+        <h2 id="round-title"></h2>
+        <p id="round-instruction"></p>
+        <button id="round-start-button">Start rundy</button>
+    </section>
+
+
+    <section id="screen-capture" class="screen" hidden>
+        <div id="gesture-emoji"></div>
+        <p id="capture-message"></p>
+        <div id="countdown"></div>
+        <progress id="capture-progress" max="10" value="0"></progress>
+    </section>
+
+    <section id="screen-uploading" class="screen" hidden>
+        <p>Wysyłanie ostatnich zdjęć. Nie zamykaj strony...</p>
+    </section>
+
+
+    <section id="screen-thanks" class="screen" hidden>
+    <h2>Dziękuję!</h2>
+        <p>Twój kod uczestnika: <strong id="participant-code"></strong></p>
+    </section>
+
     <button id="test-save-button">Test zapisu</button>
     <button id="test-image-button">Test zdjęcia</button>
+
+
+
     <div id="stage">
         <video id="camera" autoplay playsinline muted></video>
         <canvas id="overlay"></canvas>
