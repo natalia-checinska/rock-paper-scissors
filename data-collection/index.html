@@ -7,13 +7,39 @@
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
-    <section id="screen-welcome" class="screen">    
-         <h1>Kamień, papier, nożyce: pomóż wytrenować AI</h1>
-         <p id="consent-text">TODO: informacja dla uczestnika</p>
+    <section id="screen-welcome" class="screen">
+        <h1>Cześć! 👋</h1>
+
+        <div id="consent-text">
+            <p>
+                Jestem Natalka i w ramach projektu na studia uczę się machine learningu.
+                Buduję model AI, który ma rozpoznawać gesty z gry w kamień, papier, nożyce.
+                Żeby się tego nauczył, potrzebuje zdjęć prawdziwych dłoni, i tu wkraczasz Ty!
+            </p>
+
+            <p><strong>Jak to wygląda:</strong></p>
+            <ul>
+                <li>na ekranie zobaczysz, jaki gest pokazać, a aplikacja sama zrobi serię zdjęć;</li>
+                <li>pilnuj, żeby w kadrze była widoczna <strong>cała dłoń</strong>;</li>
+                <li>trzymaj rękę lekko z boku, nie przed twarzą.</li>
+            </ul>
+
+            <p>Całość to <strong>4 krótkie rundy, około 3 minuty</strong>.</p>
+
+            <p>
+                <strong>Twoje dane:</strong> aplikacja zapisuje tylko wycinek zdjęcia z samą dłonią.
+                Pełny obraz z kamery nie opuszcza Twojego telefonu. Nie zbieram imienia ani żadnych
+                danych kontaktowych. Dostęp do zdjęć mam tylko ja i prowadzący projekt.
+            </p>
+
+            <p>Dziękuję, że poświęcasz mi swój czas! <3</p>
+        </div>
+
         <label>
             <input type="checkbox" id="consent-checkbox">
-            Zapoznałam/em się z informacją i zgadzam się na udział.
+            Przeczytałam/em i chcę wziąć udział
         </label>
+
         <button id="start-button" disabled>Ładowanie...</button>
     </section>
 
