@@ -6,9 +6,16 @@ const SUPABASE_URL = "https://najpevnffbifbhjkrnsu.supabase.co";
 const SUPABASE_KEY = "sb_publishable_iKQLMLniEuXyLFh3qRgvWg_FFoM7pXZ";
 const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
+const APP_VERSION = "1.0.0-dev" // dev to testu
+
 let handLandmarker;
 let lastCapture = null; // ostatnia klatka z poprawnie widoczną dłonią
 let lastVideoTime = -1;
+
+let sessionId = null;
+let sessionPlan = null; // wylosowany plan 4 rund
+let currentRound = 0;
+let cameraFacing = null;
 
 let testSessionId = null; // id sesji, do której dopinamy zdjęcia
 let testFrameIndex = 0; // kolejny numer zdjęcia w sesji
@@ -18,6 +25,9 @@ const CROP_SIZE = 256; // zapisujemy 256x256 a będziemy trenowac na 128x128
 const screens = document.querySelectorAll(".screen");
 const stage = document.querySelector("#stage");
 
+const consentCheckbox = document.querySelector("#consent-checkbox");
+const roundTitle = document.querySelector("#round-title");
+const roundInstruction = document.querySelector("#round-instruction");
 const startButton = document.querySelector("#start-button");
 const video = document.querySelector("#camera");
 const overlay = document.querySelector("#overlay");
@@ -64,21 +74,45 @@ const ROUND_INSTRUCTIONS = [
 
 
 async function startCamera() {
-    startButton.disabled = true;
     try {
         const stream = await navigator.mediaDevices.getUserMedia({
             video : { facingMode: "user" , width: {ideal: 640}, height: {ideal: 480} },
             audio: false,
         });
         video.srcObject = stream;
-        console.log(stream.getVideoTracks()[0].getSettings());
+        const settings = stream.getVideoTracks()[0].getSettings();
+        cameraFacing = ["user","environment"].includes(settings.facingMode) ? settings.facingMode : null;
         detectionLoop();
+        return true;
     } catch (error) {
         console.error("Błąd podczas włączania kamery:", error);
-        startButton.disabled = false;
+        showScreen("camera-error");
+        return false;
     }
 }
 
+function showRoundScreen() {
+    const round = sessionPlan[currentRound];
+    roundTitle.textContent = `Runda ${round.round} z ${ROUND_COUNT}`;
+    roundInstruction.textContent = round.instruction;
+    showScreen("round");
+}
+function getParticipantId() {
+    const fromLink = new URLSearchParams(window.location.search).get("participant");
+    if (fromLink) return fromLink;
+
+    const saved = localStorage.getItem("participantId");
+    if (saved) return saved;
+
+    const newId = crypto.randomUUID();
+    localStorage.setItem("participantId", newId);
+    return newId;
+}
+function updateStartButton() {
+    const modelReady = Boolean(handLandmarker);
+    startButton.disabled = !(modelReady && consentCheckbox.checked);
+    startButton.textContent = modelReady ? "Start" : "Ładowanie...";
+}
 function showScreen(name) {
     for (const screen of screens) {
         screen.hidden = screen.id !== `screen-${name}`;
@@ -227,6 +261,42 @@ function detectionLoop() {
     requestAnimationFrame(detectionLoop);
 }
 
+async function createSession(consentAt) {
+    sessionId = crypto.randomUUID();
+    const params = new URLSearchParams(window.location.search);
+
+    const { error } = await supabase.from("sessions").insert({
+        id: sessionId,
+        participant_id: getParticipantId(),
+        consent_at: consentAt,
+        user_agent: navigator.userAgent,
+        app_version: APP_VERSION,
+        camera_facing: cameraFacing,
+        notes: params.get("note"),
+    });
+
+    if (error) {
+        console.error("Błąd zapisu sesji:", error);
+        return false;
+    }
+    return true;
+}
+
+async function onStartClick() {
+    startButton.disabled = true;
+    const consentAt = new Date().toISOString();
+
+    const cameraOk = await startCamera();
+    if (!cameraOk) return;
+
+    const sessionOk = await createSession(consentAt);
+    if (!sessionOk) { showScreen("error"); return; }
+
+    sessionPlan = buildSessionPlan();
+    currentRound = 0;
+    showRoundScreen();
+}
+
 async function testSave() {
 
     const sessionID = crypto.randomUUID();
@@ -293,8 +363,9 @@ async function testSaveImage() {
 document.querySelector("#test-save-button").addEventListener("click", testSave);
 document.querySelector("#test-image-button").addEventListener("click", testSaveImage);
 
-startButton.addEventListener("click", startCamera);
+startButton.addEventListener("click", onStartClick);
 
+consentCheckbox.addEventListener("change", updateStartButton);
 
 async function loadModel() {
     try {
@@ -307,10 +378,13 @@ async function loadModel() {
             numHands: 1,
         });
         console.log("Model MediaPipe gotowy");
+        updateStartButton();
     } catch (error) {
         console.error("Nie udało się wczytać modelu", error);
     }
 }
+
+showScreen("welcome");
 
 loadModel();
 
