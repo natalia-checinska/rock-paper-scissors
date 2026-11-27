@@ -20,6 +20,9 @@ let cameraFacing = null;
 let testSessionId = null; // id sesji, do której dopinamy zdjęcia
 let testFrameIndex = 0; // kolejny numer zdjęcia w sesji
 
+let pendingUploads = []; // obietnice wysyłania
+let failedUploads = 0; // ile zdjęć wysłano
+
 const CROP_SIZE = 256; // zapisujemy 256x256 a będziemy trenowac na 128x128
 
 const screens = document.querySelectorAll(".screen");
@@ -68,7 +71,7 @@ const NONE_HINTS = {
     thumbs_up: "👍",
 };
 
-const ROUND_COUNT = 4;
+const ROUND_COUNT = 1;
 const SHOTS_PER_SERIES = 10;
 const SHOT_INTERVAL_MS = 300; // odstęp między zdjęciami
 const FIRST_COUNTDOWN_S = 5; // odliczanie przed pierwszym gestem
@@ -122,7 +125,7 @@ async function runRound() {
         const step = round.steps[s];
         showGesture(step);
         await runCountdown(s === 0 ? FIRST_COUNTDOWN_S : COUNTDOWN_S);   // 5 s przed pierwszym gestem, potem 3 s
-        await captureSeries(step);
+        await captureSeries(step, round.round);
     }
 
     currentRound++;
@@ -130,6 +133,9 @@ async function runRound() {
         showRoundScreen();
     }
     else {
+        showScreen("uploading");
+        await Promise.all(pendingUploads);
+        console.log("Niewysłane zdjęcia: ", failedUploads);
         participantCode.textContent = getParticipantId();
         showScreen("thanks");
     }
@@ -143,7 +149,7 @@ async function takeShot() {
     return { capture, brightness, blob };
 }
 
-async function captureSeries(step) {
+async function captureSeries(step, round) {
     let shots = 0;
     captureProgress.value = 0;
     
@@ -151,10 +157,10 @@ async function captureSeries(step) {
         if (lastCapture) {
             showGesture(step);
             const shot = await takeShot();
+            pendingUploads.push(uploadShot(shot,round,step,shots));
             shots++;
             captureProgress.value = shots;
             await sleep(SHOT_INTERVAL_MS);
-            console.log("Ujęcie", shots, shot);
         }
         else {
             captureMessage.textContent = "Pokaż całą dłoń w kadrze";
@@ -404,49 +410,57 @@ async function testSave() {
 
 }
 
-async function testSaveImage() {
-    if (!lastCapture) { console.warn("Brak dłoni w kadrze, nie zapisano"); return; }
-    if (!testSessionId) { console.warn("Kliknij test zapisu"); return; }
+async function uploadShot(shot,round,step,frameIndex) {
+    try {
+        const capture = shot.capture;
 
-    const capture = lastCapture;
-    saveCtx.drawImage(cropPreview, 0, 0) // kopia wycinka
-    const brightness = computeBrightness(saveCtx);
-    const blob = await canvasToJpeg(saveCanvas);
+        const imageId = crypto.randomUUID();
+        const filePath = `${sessionId}/${imageId}.jpg`;
 
-    const imageId = crypto.randomUUID();
-    const filePath = `${testSessionId}/${imageId}.jpg`;
+        const {error : uploadError} = await supabase.storage
+            .from("hand-crops")
+            .upload(filePath, shot.blob, {contentType: "image/jpeg", upsert: false});
+        if (uploadError) {
+            console.error("Błąd wysyłania zdjęcia:", uploadError); 
+            failedUploads; 
+            return;
+        }
 
-    const {error : uploadError} = await supabase.storage
-        .from("hand-crops")
-        .upload(filePath, blob, {contentType: "image/jpeg", upsert: false});
-    if (uploadError) {console.error("Błąd wysyłania zdjęcia:", uploadError); return;}
-
-    const {error : insertError} = await supabase.from("images").insert({
-        id: imageId,
-        session_id: testSessionId,
-        round: 1,
-        frame_index: testFrameIndex,
-        gesture: "rock",
-        landmarks: capture.landmarks.map((p) => [p.x,p.y,p.z]),
-        world_landmarks: capture.worldLandmarks.map((p) => [p.x,p.y,p.z]),
-        crop_x: capture.square.x,
-        crop_y: capture.square.y,
-        crop_side: capture.square.side,
-        frame_width: capture.frameWidth,
-        frame_height: capture.frameHeight,
-        brightness: brightness,
-        handedness: capture.handedness.categoryName,
-        handedness_score: capture.handedness.score,
-        file_path: filePath,
-        captured_at: capture.capturedAt,
-    });
-    if (insertError) { console.error("Błąd zapisu wiersza:", insertError); return;}
-    
-    console.log("Zdjęcie zapisane:", filePath);
-    testFrameIndex++;
+        const {error : insertError} = await supabase.from("images").insert({
+            id: imageId,
+            session_id: sessionId,
+            round: round,
+            frame_index: frameIndex,
+            gesture: step.gesture,
+            prompt_hint: step.hint,
+            landmarks: capture.landmarks.map((p) => [p.x,p.y,p.z]),
+            world_landmarks: capture.worldLandmarks.map((p) => [p.x,p.y,p.z]),
+            crop_x: capture.square.x,
+            crop_y: capture.square.y,
+            crop_side: capture.square.side,
+            frame_width: capture.frameWidth,
+            frame_height: capture.frameHeight,
+            brightness: shot.brightness,
+            handedness: capture.handedness.categoryName,
+            handedness_score: capture.handedness.score,
+            file_path: filePath,
+            captured_at: capture.capturedAt,
+        });
+        if (insertError) { 
+            console.error("Błąd zapisu wiersza:", insertError); 
+            failedUploads++;
+            return;
+        }
+        
+        console.log("Zdjęcie zapisane:", filePath);
+    } catch (error) {
+        console.error("Nieoczekiwany błąd wywołania", error);
+        failedUploads++;
+    }
 }
+
 document.querySelector("#test-save-button").addEventListener("click", testSave);
-document.querySelector("#test-image-button").addEventListener("click", testSaveImage);
+document.querySelector("#test-image-button").addEventListener("click", uploadShot);
 
 startButton.addEventListener("click", onStartClick);
 
