@@ -25,6 +25,13 @@ const CROP_SIZE = 256; // zapisujemy 256x256 a będziemy trenowac na 128x128
 const screens = document.querySelectorAll(".screen");
 const stage = document.querySelector("#stage");
 
+const roundStartButton = document.querySelector("#round-start-button");
+const gestureEmoji = document.querySelector("#gesture-emoji");
+const captureMessage = document.querySelector("#capture-message");
+const countdown = document.querySelector("#countdown");
+const captureProgress = document.querySelector("#capture-progress");
+const participantCode = document.querySelector("#participant-code");
+
 const consentCheckbox = document.querySelector("#consent-checkbox");
 const roundTitle = document.querySelector("#round-title");
 const roundInstruction = document.querySelector("#round-instruction");
@@ -47,6 +54,8 @@ cropPreview.height = CROP_SIZE;
 const CROP_MARGIN = 0.2; // margines = 20% rozmiaru dłoni
 
 const GESTURE_EMOJI = { rock: "✊", paper: "✋", scissors: "✌️" };
+const GESTURE_NAMES = { rock: "Kamień", paper: "Papier", scissors: "Nożyce" };
+
 
 const NONE_HINTS = {
     one_finger: "☝️",
@@ -91,7 +100,63 @@ async function startCamera() {
     }
 }
 
+async function runCountdown(seconds) {
+    for (let i = seconds; i >= 1; i-- ) {
+        countdown.textContent = i;
+        await sleep(1000);
+    }
+    countdown.textContent = "";
+}
+
+function sleep(ms) {
+    return new Promise ((resolve) => setTimeout(resolve,ms));
+}
+
+async function captureSeries(step) {
+    captureProgress.value = 0;
+
+    for (let i = 1; i < SHOTS_PER_SERIES; i++) {
+        await sleep(200);
+        captureProgress.value = i;
+    }
+}
+
+async function runRound() {
+    roundStartButton.disabled = true;
+    showScreen("capture");
+    const round = sessionPlan[currentRound];
+
+    for (let s = 0; s < round.steps.length; s++) {
+        const step = round.steps[s];
+        showGesture(step);
+        await runCountdown(s === 0 ? FIRST_COUNTDOWN_S : COUNTDOWN_S);   // 5 s przed pierwszym gestem, potem 3 s
+        await captureSeries(step);
+    }
+
+    currentRound++;
+    if (currentRound < ROUND_COUNT) {
+        showRoundScreen();
+    }
+    else {
+        participantCode.textContent = getParticipantId();
+        showScreen("thanks");
+    }
+}
+
+function showGesture(step) {
+    if (step.gesture === "none") {
+        gestureEmoji.textContent = NONE_HINTS[step.hint];
+        captureMessage.textContent = "Pokaż ten gest";
+
+    }
+    else {
+        gestureEmoji.textContent = GESTURE_EMOJI[step.gesture];
+        captureMessage.textContent = GESTURE_NAMES[step.gesture];
+    }
+}
+
 function showRoundScreen() {
+    roundStartButton.disabled = false;
     const round = sessionPlan[currentRound];
     roundTitle.textContent = `Runda ${round.round} z ${ROUND_COUNT}`;
     roundInstruction.textContent = round.instruction;
@@ -366,6 +431,8 @@ document.querySelector("#test-image-button").addEventListener("click", testSaveI
 startButton.addEventListener("click", onStartClick);
 
 consentCheckbox.addEventListener("change", updateStartButton);
+
+roundStartButton.addEventListener("click", runRound);
 
 async function loadModel() {
     try {
