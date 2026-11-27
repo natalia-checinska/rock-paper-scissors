@@ -1,14 +1,153 @@
+/* ===== Kolory i podstawy (ciemny motyw) ===== */
+:root {
+    --bg: #080b14;
+    --surface: #111729;
+    --surface-2: #19213a;
+    --text: #f3f5fb;
+    --muted: #98a2bd;
+    --accent: #2f5bd3;        /* ciemny niebieski */
+    --accent-light: #7aa2ff;
+    --radius: 20px;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+    margin: 0;
+    background: radial-gradient(circle at 50% 0%, #121a33 0%, var(--bg) 60%);
+    background-color: var(--bg);
+    color: var(--text);
+    font-family: "Nunito", system-ui, -apple-system, "Segoe UI", sans-serif;
+    min-height: 100vh;
+}
+
+#app {
+    max-width: 560px;
+    margin: 0 auto;
+    padding: 24px 16px 40px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+/* na większych ekranach (komputer) szersza kolumna, więc i większy obraz z kamery */
+@media (min-width: 900px) {
+    #app { max-width: 760px; }
+}
+
+/* ===== Ekrany ===== */
+.screen {
+    background: var(--surface);
+    border-radius: var(--radius);
+    padding: 24px 20px;
+    text-align: center;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.35);
+    animation: fade-in 0.3s ease;
+}
+
+[hidden] { display: none !important; }
+
+h1, h2 { margin: 0 0 12px; font-weight: 800; }
+h1 { font-size: 1.9rem; }
+h2 { font-size: 1.5rem; }
+p { line-height: 1.55; margin: 0 0 12px; }
+
+#consent-text {
+    text-align: left;
+    color: var(--muted);
+    font-size: 0.97rem;
+}
+#consent-text strong { color: var(--text); }
+#consent-text ul { padding-left: 20px; margin: 0 0 12px; }
+#consent-text li { margin-bottom: 4px; }
+
+/* ===== Zgoda ===== */
+.consent {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    justify-content: center;
+    margin: 18px 0;
+    cursor: pointer;
+    font-weight: 600;
+}
+.consent input {
+    width: 22px;
+    height: 22px;
+    accent-color: var(--accent);
+    cursor: pointer;
+}
+
+/* ===== Przyciski ===== */
+button {
+    font: inherit;
+    font-weight: 800;
+    font-size: 1.1rem;
+    color: #fff;
+    background: var(--accent);
+    border: none;
+    border-radius: 999px;
+    padding: 14px 36px;
+    min-width: 200px;
+    cursor: pointer;
+    box-shadow: 0 6px 20px rgba(47, 91, 211, 0.4);
+    transition: transform 0.15s ease, background 0.2s ease, opacity 0.2s ease;
+}
+button:hover:not(:disabled) { background: #3a69e6; transform: translateY(-1px); }
+button:active:not(:disabled) { transform: translateY(1px); }
+button:disabled {
+    opacity: 0.4;
+    cursor: default;
+    box-shadow: none;
+}
+
+#round-instruction { color: var(--muted); font-size: 1.05rem; }
+
+/* ===== Gest do pokazania ===== */
+#gesture-emoji, .big-emoji {
+    font-size: 4.5rem;
+    line-height: 1.1;
+    margin-bottom: 6px;
+}
+#capture-message {
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: var(--accent-light);
+    min-height: 1.6em;      /* stałe miejsce, żeby układ nie skakał, gdy pojawi się prośba o dłoń */
+    margin-bottom: 8px;
+}
+
+/* ===== Pasek postępu (płynny) ===== */
+#capture-progress {
+    height: 12px;
+    background: var(--surface-2);
+    border-radius: 999px;
+    overflow: hidden;
+}
+#capture-progress-fill {
+    width: 0%;
+    height: 100%;
+    background: linear-gradient(90deg, var(--accent), var(--accent-light));
+    border-radius: 999px;
+    transition: width 0.3s linear;   /* tyle co odstęp między zdjęciami, więc pasek "płynie" */
+}
+
+/* ===== Obraz z kamery ===== */
 #stage {
     position: relative;
     width: 100%;
-    max-width: 640px;
-    transform: scaleX(-1);
-    /* transform w stage żeby odwracał się obraz i nakładka */
+    border-radius: var(--radius);
+    overflow: hidden;
+    background: #000;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.45);
 }
+
+/* odbicie lustrzane tylko obrazu i nakładki (licznik zostaje nieodbity) */
+#camera, #overlay { transform: scaleX(-1); }
 
 #camera {
     width: 100%;
-    max-width: 640px;
+    display: block;
 }
 
 #overlay {
@@ -19,10 +158,62 @@
     height: 100%;
 }
 
+/* ===== Odliczanie na środku kamery ===== */
+#countdown {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 7rem;
+    font-weight: 800;
+    color: rgba(255, 255, 255, 0.85);
+    text-shadow: 0 4px 30px rgba(0, 0, 0, 0.5);
+    pointer-events: none;
+}
+#countdown.tick { animation: pop 1s ease-out; }
+
+/* ===== Wysyłanie ===== */
+.spinner {
+    width: 44px;
+    height: 44px;
+    margin: 8px auto 16px;
+    border: 4px solid var(--surface-2);
+    border-top-color: var(--accent-light);
+    border-radius: 50%;
+    animation: spin 0.9s linear infinite;
+}
+
+#participant-code {
+    display: inline-block;
+    margin-top: 6px;
+    padding: 6px 12px;
+    background: var(--surface-2);
+    border-radius: 10px;
+    font-family: ui-monospace, monospace;
+    font-size: 0.9rem;
+    word-break: break-all;
+}
+
+/* ===== Tryb debug: podgląd wycinka w rogu ===== */
 #crop-preview {
-    display: block;
+    position: fixed;
+    right: 12px;
+    bottom: 12px;
     width: 128px;
     height: 128px;
-    margin-top: 8px;
-    border: 1px solid #888;
+    border-radius: 12px;
+    border: 2px solid var(--accent-light);
 }
+
+/* ===== Animacje ===== */
+@keyframes fade-in {
+    from { opacity: 0; transform: translateY(6px); }
+    to   { opacity: 1; transform: none; }
+}
+@keyframes pop {
+    0%   { transform: scale(1.5); opacity: 0; }
+    20%  { transform: scale(1);   opacity: 1; }
+    100% { transform: scale(0.9); opacity: 0.6; }
+}
+@keyframes spin { to { transform: rotate(360deg); } }

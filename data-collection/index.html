@@ -4,15 +4,19 @@
     <meta charset = "UTF-8">
     <meta name = "viewport" content = "width=device-width, initial-scale=1.0">
     <title>Zbieranie gestów</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
+<main id="app">
     <section id="screen-welcome" class="screen">
         <h1>Cześć! 👋</h1>
 
         <div id="consent-text">
             <p>
-                Jestem Natalka i robię projekt na studia, w którym uczę się podstaw machine learningu.
+                Jestem Natalka i robię projekt na studia, w którym uczę się podstaw uczenia maszynowego.
                 Buduję model AI, który ma rozpoznawać gesty z gry w kamień, papier, nożyce.
                 Żeby się tego nauczył, potrzebuje zdjęć prawdziwych dłoni, i tu wkraczasz Ty!
             </p>
@@ -20,7 +24,8 @@
             <p><strong>Jak to wygląda:</strong></p>
             <ul>
                 <li>na ekranie zobaczysz, jaki gest pokazać, a aplikacja sama zrobi serię zdjęć;</li>
-                <li>pilnuj, żeby w kadrze była widoczna <strong>cała dłoń</strong>;</li>
+                <li>pilnuj, żeby w kadrze była widoczna cała dłoń;</li>
+                <li>w trakcie robienia zdjęć lekko poruszaj i obracaj dłonią, żeby zdjęcia były z różnych stron;</li>
                 <li>trzymaj rękę lekko z boku, nie przed twarzą.</li>
             </ul>
 
@@ -32,10 +37,10 @@
                 twoich danych. Dostęp do zdjęć mam tylko ja i prowadzący projektu.
             </p>
 
-            <p>Dziękuję, że poświęcasz mi swój czas! <3</p>
+            <p><strong>Dziękuję, że poświęcasz mi swój czas! </strong></p>
         </div>
 
-        <label>
+        <label class="consent">
             <input type="checkbox" id="consent-checkbox">
             Przeczytałam/em i chcę wziąć udział
         </label>
@@ -62,17 +67,18 @@
     <section id="screen-capture" class="screen" hidden>
         <div id="gesture-emoji"></div>
         <p id="capture-message"></p>
-        <div id="countdown"></div>
-        <progress id="capture-progress" max="10" value="0"></progress>
+        <div id="capture-progress"><div id="capture-progress-fill"></div></div>
     </section>
 
     <section id="screen-uploading" class="screen" hidden>
+        <div class="spinner"></div>
         <p>Wysyłanie ostatnich zdjęć. Nie zamykaj strony...</p>
     </section>
 
 
     <section id="screen-thanks" class="screen" hidden>
-    <h2>Dziękuję!</h2>
+        <div class="big-emoji">💙</div>
+        <h2>Dziękuję!</h2>
         <p>Twój kod uczestnika: <strong id="participant-code"></strong></p>
     </section>
 
@@ -82,8 +88,10 @@
     <div id="stage">
         <video id="camera" autoplay playsinline muted></video>
         <canvas id="overlay"></canvas>
+        <div id="countdown"></div>
     </div>
-    <canvas  id="crop-preview"></canvas>
+</main>
+    <canvas id="crop-preview"></canvas>
     <script type="module" src="app.js"></script>
 </body>
 </html>

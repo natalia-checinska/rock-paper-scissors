@@ -32,7 +32,7 @@ const roundStartButton = document.querySelector("#round-start-button");
 const gestureEmoji = document.querySelector("#gesture-emoji");
 const captureMessage = document.querySelector("#capture-message");
 const countdown = document.querySelector("#countdown");
-const captureProgress = document.querySelector("#capture-progress");
+const progressFill = document.querySelector("#capture-progress-fill");
 const participantCode = document.querySelector("#participant-code");
 
 const consentCheckbox = document.querySelector("#consent-checkbox");
@@ -107,9 +107,19 @@ async function startCamera() {
 async function runCountdown(seconds) {
     for (let i = seconds; i >= 1; i-- ) {
         countdown.textContent = i;
+        // restart animacji "wyskoczenia" liczby: zdejmij klasę, wymuś przeliczenie, dodaj z powrotem
+        countdown.classList.remove("tick");
+        void countdown.offsetWidth;
+        countdown.classList.add("tick");
         await sleep(1000);
     }
     countdown.textContent = "";
+}
+
+// pasek postępu: szerokość w % (płynność daje transition w CSS)
+function setProgress(count, animate = true) {
+    progressFill.style.transition = animate ? "" : "none";
+    progressFill.style.width = `${(count / SHOTS_PER_SERIES) * 100}%`;
 }
 
 // js w przeglądarce jest jednowątkowy - dlatego potrzebujemy uzywac await sleep
@@ -152,7 +162,7 @@ async function takeShot() {
 
 async function captureSeries(step, round) {
     let shots = 0;
-    captureProgress.value = 0;
+    setProgress(0, false); // reset bez animacji
     
     while (shots < SHOTS_PER_SERIES) {
         if (lastCapture) {
@@ -160,7 +170,7 @@ async function captureSeries(step, round) {
             const shot = await takeShot();
             pendingUploads.push(uploadShot(shot,round,step,shots));
             shots++;
-            captureProgress.value = shots;
+            setProgress(shots);
             await sleep(SHOT_INTERVAL_MS);
         }
         else {
@@ -171,15 +181,9 @@ async function captureSeries(step, round) {
 }
 
 function showGesture(step) {
-    if (step.gesture === "none") {
-        gestureEmoji.textContent = NONE_HINTS[step.hint];
-        captureMessage.textContent = "Pokaż ten gest";
-
-    }
-    else {
-        gestureEmoji.textContent = GESTURE_EMOJI[step.gesture];
-        captureMessage.textContent = GESTURE_NAMES[step.gesture];
-    }
+    // same emotki, bez podpisu; napis pojawia się tylko przy prośbie o dłoń
+    gestureEmoji.textContent = step.gesture === "none" ? NONE_HINTS[step.hint] : GESTURE_EMOJI[step.gesture];
+    captureMessage.textContent = "";
 }
 
 function showRoundScreen() {
@@ -327,8 +331,8 @@ function detectionLoop() {
         if (firstHand && isHandInsideFrame(firstHand)) {
             const box = getBoundingBox(firstHand, overlay.width, overlay.height);
             const square = clampSquareToFrame(getSquare(box), overlay.width, overlay.height);
-            ctx.strokeStyle = "yellow";
-            ctx.lineWidth = 2;
+            ctx.strokeStyle = "rgba(122, 162, 255, 0.9)"; // jasnoniebieska ramka
+            ctx.lineWidth = 3;
             ctx.strokeRect(square.x, square.y, square.side, square.side);
 
             cropCtx.drawImage(
