@@ -108,17 +108,9 @@ async function runCountdown(seconds) {
     countdown.textContent = "";
 }
 
+// js w przeglądarce jest jednowątkowy - dlatego potrzebujemy uzywac await sleep
 function sleep(ms) {
     return new Promise ((resolve) => setTimeout(resolve,ms));
-}
-
-async function captureSeries(step) {
-    captureProgress.value = 0;
-
-    for (let i = 1; i < SHOTS_PER_SERIES; i++) {
-        await sleep(200);
-        captureProgress.value = i;
-    }
 }
 
 async function runRound() {
@@ -140,6 +132,34 @@ async function runRound() {
     else {
         participantCode.textContent = getParticipantId();
         showScreen("thanks");
+    }
+}
+
+async function takeShot() {
+    const capture = lastCapture;
+    saveCtx.drawImage(cropPreview,0,0);
+    const brightness = computeBrightness(saveCtx);
+    const blob = await canvasToJpeg(saveCanvas);
+    return { capture, brightness, blob };
+}
+
+async function captureSeries(step) {
+    let shots = 0;
+    captureProgress.value = 0;
+    
+    while (shots < SHOTS_PER_SERIES) {
+        if (lastCapture) {
+            showGesture(step);
+            const shot = await takeShot();
+            shots++;
+            captureProgress.value = shots;
+            await sleep(SHOT_INTERVAL_MS);
+            console.log("Ujęcie", shots, shot);
+        }
+        else {
+            captureMessage.textContent = "Pokaż całą dłoń w kadrze";
+            await sleep(100);
+        }
     }
 }
 
