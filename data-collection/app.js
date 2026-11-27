@@ -8,6 +8,9 @@ const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
 const APP_VERSION = "1.0.0-dev" // dev to testu
 
+// ?debug w adresie włącza podgląd wycinka i punkty dłoni (dla autorki, nie dla uczestników)
+const DEBUG = new URLSearchParams(window.location.search).has("debug");
+
 let handLandmarker;
 let lastCapture = null; // ostatnia klatka z poprawnie widoczną dłonią
 let lastVideoTime = -1;
@@ -16,9 +19,6 @@ let sessionId = null;
 let sessionPlan = null; // wylosowany plan 4 rund
 let currentRound = 0;
 let cameraFacing = null;
-
-let testSessionId = null; // id sesji, do której dopinamy zdjęcia
-let testFrameIndex = 0; // kolejny numer zdjęcia w sesji
 
 let pendingUploads = []; // obietnice wysyłania
 let failedUploads = 0; // ile zdjęć wysłano
@@ -53,6 +53,7 @@ const saveCtx = saveCanvas.getContext("2d", {willReadFrequently: true}); // przy
 
 cropPreview.width = CROP_SIZE;
 cropPreview.height = CROP_SIZE;
+cropPreview.hidden = !DEBUG; // podgląd wycinka tylko w trybie debug
 
 const CROP_MARGIN = 0.2; // margines = 20% rozmiaru dłoni
 
@@ -71,7 +72,7 @@ const NONE_HINTS = {
     thumbs_up: "👍",
 };
 
-const ROUND_COUNT = 1;
+const ROUND_COUNT = 4;
 const SHOTS_PER_SERIES = 10;
 const SHOT_INTERVAL_MS = 300; // odstęp między zdjęciami
 const FIRST_COUNTDOWN_S = 5; // odliczanie przed pierwszym gestem
@@ -311,12 +312,14 @@ function detectionLoop() {
         const result = handLandmarker.detectForVideo(video, performance.now());
 
         ctx.clearRect(0,0,overlay.width, overlay.height);
-        for (const hand of result.landmarks) {
-            for (const point of hand) {
-                ctx.beginPath();
-                ctx.arc(point.x * overlay.width, point.y * overlay.height, 4, 0, 2 * Math.PI);
-                ctx.fillStyle = "red";
-                ctx.fill();
+        if (DEBUG) { // punkty dłoni tylko w trybie debug
+            for (const hand of result.landmarks) {
+                for (const point of hand) {
+                    ctx.beginPath();
+                    ctx.arc(point.x * overlay.width, point.y * overlay.height, 4, 0, 2 * Math.PI);
+                    ctx.fillStyle = "red";
+                    ctx.fill();
+                }
             }
         }
         const firstHand = result.landmarks[0];
@@ -388,28 +391,6 @@ async function onStartClick() {
     showRoundScreen();
 }
 
-async function testSave() {
-
-    const sessionID = crypto.randomUUID();
-
-    const {error} = await supabase.from("sessions").insert({
-        id: sessionID,
-        participant_id: "test",
-        consent_at: new Date().toISOString(),
-        user_agent: navigator.userAgent,
-        app_version: "0.0.1-test",
-        notes: "pierwszy test zapisu",
-    });
-    if (error) {
-        console.error("Błąd podczas zapisu sesji", error);
-        return;
-    } 
-    console.log("Sesja zapisana: ", sessionID);
-    testSessionId = sessionID;
-    testFrameIndex = 0;
-
-}
-
 async function uploadShot(shot,round,step,frameIndex) {
     try {
         const capture = shot.capture;
@@ -422,7 +403,7 @@ async function uploadShot(shot,round,step,frameIndex) {
             .upload(filePath, shot.blob, {contentType: "image/jpeg", upsert: false});
         if (uploadError) {
             console.error("Błąd wysyłania zdjęcia:", uploadError); 
-            failedUploads; 
+            failedUploads++;
             return;
         }
 
@@ -459,8 +440,6 @@ async function uploadShot(shot,round,step,frameIndex) {
     }
 }
 
-document.querySelector("#test-save-button").addEventListener("click", testSave);
-document.querySelector("#test-image-button").addEventListener("click", uploadShot);
 
 startButton.addEventListener("click", onStartClick);
 
